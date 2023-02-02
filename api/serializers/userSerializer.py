@@ -1,7 +1,7 @@
 def userEntity(user) -> dict:
     return {
         "id": str(user["_id"]),
-        "name": user["name"],
+        "name": user["nome"],
         "email": user["email"],
         "role": user["role"],
         "photo": user["photo"],

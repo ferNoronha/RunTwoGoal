@@ -7,7 +7,7 @@ from bson.objectid import ObjectId
 
 from api.serializers.userSerializer import userEntity
 
-from core.database.db import User
+from core.database.db import User_db
 from config import settings
 
 
@@ -36,18 +36,24 @@ class NotVerified(Exception):
 class UserNotFound(Exception):
     pass
 
+class NotActive(Exception):
+    pass
+
 
 def require_user(Authorize: AuthJWT = Depends()):
     try:
         Authorize.jwt_required()
         user_id = Authorize.get_jwt_subject()
-        user = userEntity(User.find_one({'_id': ObjectId(str(user_id))}))
+        user = userEntity(User_db.find_one({'_id': ObjectId(str(user_id))}))
 
         if not user:
             raise UserNotFound('User no longer exist')
 
-        if not user["verified"]:
-            raise NotVerified('You are not verified')
+        # if not user["verified"]:
+        #     raise NotVerified('You are not verified')
+        
+        if not user["active"]:
+            raise NotActive('You are not active')
 
     except Exception as e:
         error = e.__class__.__name__
