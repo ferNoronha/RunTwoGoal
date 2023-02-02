@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, constr
 from datetime import datetime
-
+from enum import Enum
 
 class UserSchema(BaseModel):
     nome: str
@@ -18,7 +18,7 @@ class UserSchema(BaseModel):
 class CreateUserSchema(UserSchema):
     password: constr(min_length=8)
     password_confirm: str
-    verified: bool = True
+    verified: bool = False
 
 class UserResponseSchema (UserSchema):
     id: str
@@ -32,9 +32,6 @@ class UserResponse(BaseModel):
 class FilteredUserResponse(UserSchema):
     id: str
 
-# class User(BaseModel):
-#     email: EmailStr
-#     username: str
-#     password: str
-#     full_name: str
-#     active: bool=True
+class UserLoginSchemma(BaseModel):
+    email: EmailStr
+    password: str
