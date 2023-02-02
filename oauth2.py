@@ -4,8 +4,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
 from bson.objectid import ObjectId
-
-from api.serializers.userSerializer import userEntity
+from enumConfig import Role
+from api.serializers.userSerializer import userEntity, userRoleEntity
 
 from core.database.db import User_db
 from config import settings
@@ -39,6 +39,32 @@ class UserNotFound(Exception):
 class NotActive(Exception):
     pass
 
+class NotAdmin(Exception):
+    pass
+
+def role(Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    user_id = Authorize.get_jwt_subject()
+
+    user_role = userRoleEntity(User_db.find_one({'_id': ObjectId(str(user_id))}))
+    return user_role    
+
+def admin_role(Authorize: AuthJWT = Depends()):
+    try:
+        Authorize.jwt_required()
+        user_id = Authorize.get_jwt_subject()
+
+        user_role = userRoleEntity(User_db.find_one({'_id': ObjectId(str(user_id))}))
+        
+        
+        if Role(int(user_role["role"])) != Role.admin:
+            print("entrou")
+            raise NotAdmin("User role")
+        
+    except Exception as e:
+        errors(e)
+        
+    return True
 
 def require_user(Authorize: AuthJWT = Depends()):
     try:
@@ -56,17 +82,31 @@ def require_user(Authorize: AuthJWT = Depends()):
             raise NotActive('You are not active')
 
     except Exception as e:
-        error = e.__class__.__name__
-        print(error)
-        if error == 'MissingTokenError':
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not logged in')
-        if error == 'UserNotFound':
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail='User no longer exist')
-        if error == 'NotVerified':
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail='Please verify your account')
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail='Token is invalid or has expired')
+        errors(e)
     return user_id
+
+def raise_errors(user):
+    if not user:
+        raise UserNotFound('User no longer exist')
+    if not user["verified"]:
+        raise NotVerified('You are not verified')
+    if not user["active"]:
+        raise NotActive('You are not active')
+
+def errors(e):
+    error = e.__class__.__name__
+    print(error)
+    if error == 'MissingTokenError':
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='You are not logged in')
+    if error == 'UserNotFound':
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='User no longer exist')
+    if error == 'NotVerified':
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='Please verify your account')
+    if error == "NotAdmin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='User Role')
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail='Token is invalid or has expired')
