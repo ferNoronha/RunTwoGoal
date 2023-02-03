@@ -1,7 +1,8 @@
 
 from fastapi import APIRouter, Depends, Request, HTTPException, status, Response
-from api.schemas.userSchemas import UserSchema, CreateUserSchema, UserLoginSchemma
-from api.serializers.userSerializer import userEntity, userListEntity, logginUserResponseEntity, embeddedUserResponse
+from ..schemas.userSchemas import UserSchema, CreateUserSchema, UserLoginSchemma
+from ..schemas.walletSchemas import WalletSchema
+from ..serializers.userSerializer import userEntity, userListEntity, logginUserResponseEntity, embeddedUserResponse
 from core.database.db import User_db as us
 from oauth2 import require_user, AuthJWT, admin_role
 from utils import hash_password, verify_password
@@ -9,6 +10,7 @@ from enumConfig import Role
 from datetime import datetime, timedelta
 from config import settings
 from bson.objectid import ObjectId
+from ..crud.walletCRUD import create_wallet_func
 
 router = APIRouter()
 ACCESS_TOKEN_EXPIRES_IN = settings.ACCESS_TOKEN_EXPIRES_IN
@@ -29,11 +31,14 @@ def create_user(
     
     user.password = hash_password(user.password)
     del user.password_confirm
-    if user.role is None:
-        user.role = Role.admin
-    else:
-        # user.role = Role(user.role.lower()) pega pelo value
-        user.role = str(Role[user.role.lower()].value) #pega o value pela key
+    try:
+        if user.role is None:
+            user.role = Role.admin
+        else:
+            # user.role = Role(user.role.lower()) pega pelo value
+            user.role = str(Role[user.role.lower()].value) #pega o value pela key
+    except:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Wrong Role")
     user.email = user.email.lower()
     user.created_at = datetime.utcnow()
     user.created_at = user.updated_at
@@ -43,6 +48,19 @@ def create_user(
     result = us.insert_one(user.dict())
     exist = us.find_one({"_id":result.inserted_id})
     if exist:
+        new_wallet = WalletSchema(user_id=str(result.inserted_id),
+        opening_balance = "0.00",
+        balance = "0.00",
+        qnt_expense = 0,
+        financial_institution= "Carteira",
+        qnt_transfer = 0,
+        description = "Carteira",
+        qnt_income= 0,
+        active = True,
+        created_at= datetime.utcnow(),
+        updated_at= datetime.utcnow()
+        )
+        sucess = create_wallet_func(new_wallet)
         return {"status": "success", "message": "Adicionado"}
     else:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error user creating")
